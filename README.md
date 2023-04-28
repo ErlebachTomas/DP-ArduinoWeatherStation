@@ -4,7 +4,7 @@ Arduino is used to gather data from various sensors. Data is collected and then 
 
 ## Installation 
 To use this project, you will need to connect the sensors to the Arduino board according to the wiring diagram provided in the code:
-![schemas](schema.png)
+![schemas](Schema.png)
 
 
 | Component | Description |
