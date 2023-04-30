@@ -1,13 +1,14 @@
 #include <SoftwareSerial.h>
+#include <ArduinoJson.h>
 
 // == BLUETOOTH modul ==
-#define RX 11 
+#define RX 11
 #define TX 10
 SoftwareSerial bluetooth(TX, RX);
 //== VLHKOMER  ==
 #include <DHT.h>
-#define DHTpin 5 
-#define DHTtype DHT11  
+#define DHTpin 5
+#define DHTtype DHT11
 DHT sensorDHT(DHTpin, DHTtype);
 //== DISPLAY ==
 #include <U8glib.h>
@@ -23,72 +24,68 @@ Adafruit_BMP280 bmp;
 #include <DallasTemperature.h>
 #define D18B20pin 2
 OneWire oneWire(D18B20pin);
-DallasTemperature snowSensor(&oneWire); 
+DallasTemperature snowSensor(&oneWire);
 
+void setup()
+{
 
-void setup() {
-
-  pinMode(LED_BUILTIN, OUTPUT);  // LED
-  bluetooth.begin(9600); // Bluetooth init 
+  bluetooth.begin(9600); // Bluetooth init
   Serial.begin(9600);
   sensorDHT.begin();
   snowSensor.begin();
-      
-  if (!bmp.begin(BMP280_ADRESS)) {   // osetreni sbernice 
+
+  if (!bmp.begin(BMP280_ADRESS))
+  { // osetreni sbernice
     Serial.println("Could not find a valid BMP280 sensor, check wiring!");
     while (1);
   }
 
-  display.setFont(u8g_font_unifont); 
+  display.setFont(u8g_font_unifont);
 }
 
-void loop() {
+void loop()
+{
 
   float humidity = sensorDHT.readHumidity();
   float tepBMP = bmp.readTemperature();
-  snowSensor.requestTemperatures();  
-  float tepSnow = snowSensor.getTempCByIndex(0); // prvni čidlo
-  float pressure = (bmp.readPressure()/100.00) + 32; // korekce měření v hPa
+  snowSensor.requestTemperatures();
+  float tepSnow = snowSensor.getTempCByIndex(0);       // prvni čidlo
+  float pressure = (bmp.readPressure() / 100.00) + 32; // korekce měření v hPa
 
   display.firstPage();
-  do {
-   display.setPrintPos(0, 10);
-   display.print("Vzduch: ");
-   display.print(tepBMP);
-   display.print(" C"); 
-   display.setPrintPos(0, 30);
-   display.print("Sníh: ");
-   display.print(tepSnow);
-   display.print(" C");  
-   display.setPrintPos(0, 45);
-   display.print("Vlhkost: ");
-   display.print(humidity);
-   display.print(" %");
-   display.setPrintPos(0, 60);
-   display.print("Tlak: ");
-   display.print(pressure);
-   display.print(" hPa");
-   } while (display.nextPage());
-  
+  do
+  {
+    display.setPrintPos(0, 10);
+    display.print("Vzduch: ");
+    display.print(tepBMP);
+    display.print(" C");
+    display.setPrintPos(0, 30);
+    display.print("Snih: ");
+    display.print(tepSnow);
+    display.print(" C");
+    display.setPrintPos(0, 45);
+    display.print("Vlhkost: ");
+    display.print(humidity);
+    display.print(" %");
+    display.setPrintPos(0, 60);
+    display.print("Tlak: ");
+    display.print(pressure);
+    display.print(" hPa");
+  } while (display.nextPage());
 
-  if (bluetooth.available() > 0) {    
-    byte receivedData = bluetooth.read();  
-    
-
-     switch (receivedData) { 
-      case '0': 
-      digitalWrite(LED_BUILTIN, LOW);
-      break; 
-      case '1':     
-      digitalWrite(LED_BUILTIN, HIGH);
-      break;
-      default:     
-      char stringData = (char) receivedData; 
-      Serial.println(stringData); // print
-     }
-    
-    bluetooth.write(receivedData);  // echo  
-    
+  if (bluetooth.available() > 0)
+  {
+    char request = (char) bluetooth.read();    
+    if (request == '1') {
+      StaticJsonDocument<200> jsonDoc;
+      jsonDoc["airTemperature"] = tepBMP;
+      jsonDoc["snowTemperature"] = tepSnow;
+      jsonDoc["humidity"] = humidity;
+      serializeJson(jsonDoc, bluetooth);
+      bluetooth.println();
+    } else {
+      bluetooth.println(request);
+    }
   }
-   delay(1000); 
+  delay(3500);
 }
