@@ -26,8 +26,15 @@ Adafruit_BMP280 bmp;
 OneWire oneWire(D18B20pin);
 DallasTemperature snowSensor(&oneWire);
 
+int counter = 0; // casovac
+float humidity, tepBMP, tepSnow, pressure;
+String jsonString;
+
+
 void setup()
 {
+
+  pinMode(LED_BUILTIN, OUTPUT); // LED
 
   bluetooth.begin(9600); // Bluetooth init
   Serial.begin(9600);
@@ -37,55 +44,77 @@ void setup()
   if (!bmp.begin(BMP280_ADRESS))
   { // osetreni sbernice
     Serial.println("Could not find a valid BMP280 sensor, check wiring!");
-    while (1);
+    while (1)
+      ;
   }
 
   display.setFont(u8g_font_unifont);
 }
 
-void loop()
-{
-
-  float humidity = sensorDHT.readHumidity();
-  float tepBMP = bmp.readTemperature();
-  snowSensor.requestTemperatures();
-  float tepSnow = snowSensor.getTempCByIndex(0);       // prvni čidlo
-  float pressure = (bmp.readPressure() / 100.00) + 32; // korekce měření v hPa
-
-  display.firstPage();
-  do
+void loop() {
+  if (counter % 3 == 0)
   {
-    display.setPrintPos(0, 10);
-    display.print("Vzduch: ");
-    display.print(tepBMP);
-    display.print(" C");
-    display.setPrintPos(0, 30);
-    display.print("Snih: ");
-    display.print(tepSnow);
-    display.print(" C");
-    display.setPrintPos(0, 45);
-    display.print("Vlhkost: ");
-    display.print(humidity);
-    display.print(" %");
-    display.setPrintPos(0, 60);
-    display.print("Tlak: ");
-    display.print(pressure);
-    display.print(" hPa");
-  } while (display.nextPage());
+    humidity = sensorDHT.readHumidity();
+    tepBMP = bmp.readTemperature();
+    snowSensor.requestTemperatures();
+    tepSnow = snowSensor.getTempCByIndex(0);
+    pressure = (bmp.readPressure() / 100.00) + 32;
+
+    display.firstPage();
+    do
+    {
+      display.setPrintPos(0, 10);
+      display.print("Vzduch: ");
+      display.print(tepBMP);
+      display.print(" C");
+      display.setPrintPos(0, 30);
+      display.print("Snih: ");
+      display.print(tepSnow);
+      display.print(" C");
+      display.setPrintPos(0, 45);
+      display.print("Vlhkost: ");
+      display.print(humidity);
+      display.print(" %");
+      display.setPrintPos(0, 60);
+      display.print("Tlak: ");
+      display.print(pressure);
+      display.print(" hPa");
+    } while (display.nextPage());
+
+    StaticJsonDocument<200> jsonDoc;
+    jsonDoc["airTemperature"] = tepBMP;
+    jsonDoc["snowTemperature"] = tepSnow;
+    jsonDoc["humidity"] = humidity;
+
+    serializeJson(jsonDoc, jsonString);
+  }
 
   if (bluetooth.available() > 0)
   {
-    char request = (char) bluetooth.read();    
-    if (request == '1') {
-      StaticJsonDocument<200> jsonDoc;
-      jsonDoc["airTemperature"] = tepBMP;
-      jsonDoc["snowTemperature"] = tepSnow;
-      jsonDoc["humidity"] = humidity;
-      serializeJson(jsonDoc, bluetooth);
-      bluetooth.println();
-    } else {
-      bluetooth.println(request);
+    char request = (char)bluetooth.read();
+    Serial.println(request);
+   
+    switch (request)
+    {
+    case '0':
+      digitalWrite(LED_BUILTIN, LOW);
+      break;
+    case '1':
+      digitalWrite(LED_BUILTIN, HIGH);
+      break;
+    case '2':
+      bluetooth.println(jsonString);
+      Serial.println(jsonString);     
+      break;
+    case '\r': // skip CR
+      break;
+    case '\n': // skip LF
+      break;
+    default:
+      break;
     }
   }
-  delay(3500);
+  
+  delay(1000);
+  counter++;
 }
