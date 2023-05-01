@@ -14,6 +14,7 @@ void setup() {
 
 }
 
+
 void loop() {
   if (bluetooth.available() > 0) {    
     byte receivedData = bluetooth.read();  
