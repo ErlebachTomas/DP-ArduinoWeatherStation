@@ -1,2 +1,5 @@
 .vscode
 libraries
+setup/debug
+setup.exe
+Setup.msi
