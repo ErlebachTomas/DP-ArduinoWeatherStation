@@ -28,8 +28,6 @@ DallasTemperature snowSensor(&oneWire);
 
 int counter = 0; // casovac
 float humidity, tepBMP, tepSnow, pressure;
-String jsonString;
-
 
 void setup()
 {
@@ -45,14 +43,14 @@ void setup()
   { // osetreni sbernice
     Serial.println("Could not find a valid BMP280 sensor, check wiring!");
     while (1)
-      ;
+      ; // err loop
   }
 
   display.setFont(u8g_font_unifont);
 }
 
 void loop() {
-  if (counter % 3 == 0)
+  if (counter % 6 == 0) // cist jednou za 3 s 
   {
     humidity = sensorDHT.readHumidity();
     tepBMP = bmp.readTemperature();
@@ -80,13 +78,7 @@ void loop() {
       display.print(pressure);
       display.print(" hPa");
     } while (display.nextPage());
-
-    StaticJsonDocument<200> jsonDoc;
-    jsonDoc["airTemperature"] = tepBMP;
-    jsonDoc["snowTemperature"] = tepSnow;
-    jsonDoc["humidity"] = humidity;
-
-    serializeJson(jsonDoc, jsonString);
+       
   }
 
   if (bluetooth.available() > 0)
@@ -102,9 +94,24 @@ void loop() {
     case '1':
       digitalWrite(LED_BUILTIN, HIGH);
       break;
-    case '2':
+    case '2':  
+
+      humidity = sensorDHT.readHumidity();
+      tepBMP = bmp.readTemperature();
+      snowSensor.requestTemperatures();
+      tepSnow = snowSensor.getTempCByIndex(0);
+      pressure = (bmp.readPressure() / 100.00) + 32;
+      
+      String jsonString = "";
+      StaticJsonDocument<200> jsonDoc;
+      jsonDoc["airTemperature"] = tepBMP;
+      jsonDoc["snowTemperature"] = tepSnow;
+      jsonDoc["humidity"] = humidity;
+      serializeJson(jsonDoc, jsonString);
+      delay(2000); // jinak nezapise cele, nevim proc       
+      Serial.println(jsonString);
       bluetooth.println(jsonString);
-      Serial.println(jsonString);     
+      delay(2000);      
       break;
     case '\r': // skip CR
       break;
@@ -115,6 +122,6 @@ void loop() {
     }
   }
   
-  delay(1000);
+  delay(500);
   counter++;
 }
